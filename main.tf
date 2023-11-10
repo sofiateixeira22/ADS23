@@ -51,6 +51,17 @@ resource "google_compute_address" "client_1_ip" {
     address_type  = "INTERNAL"
 }
 
+resource "tls_private_key" "ssh_key" {
+  algorithm = "RSA"
+  rsa_bits  = 2048
+}
+
+resource "google_compute_project_metadata" "ssh_keys" {
+  metadata = {
+    ssh-keys = "debian:${tls_private_key.ssh_key.public_key_openssh}"
+  }
+}
+
 # @TODO: create disks to attach to instances
 
 # resource "google_compute_disk" "osd_1_disk" {
@@ -120,6 +131,30 @@ resource "google_compute_instance" "mon_1" {
         network = data.google_compute_network.default_network.id
         subnetwork = data.google_compute_subnetwork.default_subnetwork.id
         network_ip = google_compute_address.mon_1_ip.address
+    }
+
+    provisioner "file" {
+        source      = "./mon_config.sh"
+        destination = "./mon_config.sh"
+        connection {
+            type        = "ssh"
+            user        = "debian"
+            private_key = tls_private_key.ssh_key.private_key_pem
+            host        = self.network_interface[0].access_config[0].nat_ip
+        }
+    }
+
+    provisioner "remote-exec" {
+        inline = [
+          "sudo chmod +x ./mon_config.sh",
+          "sudo ./mon_config.sh"
+        ]
+        connection {
+            type = "ssh"
+            user = "debian"
+            private_key = tls_private_key.ssh_key.private_key_pem
+            host        = self.network_interface[0].access_config[0].nat_ip
+        }
     }
 }
 
