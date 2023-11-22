@@ -130,21 +130,25 @@ resource "google_compute_disk" "osd_2_disk_2" {
 resource "google_compute_attached_disk" "osd_1_disk_ssd_attach" {
     disk = google_compute_disk.osd_1_disk_ssd.id
     instance = google_compute_instance.osd_node_1.id
+    zone = "europe-southwest1-a"
 }
 
 resource "google_compute_attached_disk" "osd_1_disk_standard_attach" {
     disk = google_compute_disk.osd_1_disk_standard.id
     instance = google_compute_instance.osd_node_1.id
+    zone = "europe-southwest1-a"
 }
 
 resource "google_compute_attached_disk" "osd_2_disk_1_attach" {
     disk = google_compute_disk.osd_2_disk_1.id
     instance = google_compute_instance.osd_node_2.id
+    zone = "europe-southwest1-a"
 }
 
 resource "google_compute_attached_disk" "osd_2_disk_2_attach" {
     disk = google_compute_disk.osd_2_disk_2.id
     instance = google_compute_instance.osd_node_2.id
+    zone = "europe-southwest1-a"
 }
 
 # create compute instances
