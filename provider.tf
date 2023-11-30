@@ -9,8 +9,7 @@ terraform {
 
 
 provider "google" {
-    credentials = "./keys_priv.json"
-    project     = "ads-project-401714"
-    #project = "adminsistemas-401916"
+    credentials = "./keys.json"
+    project     = "adminsistemas-401916"
     region      = "europe-southwest1"
 }
