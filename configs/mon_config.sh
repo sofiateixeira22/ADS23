@@ -3,6 +3,28 @@ sudo apt-get update -y
 sudo apt-get install -y ceph ceph-mds
 sudo touch /etc/ceph/ceph.conf
 
+USER=$(logname)
+
+sudo chmod +x /home/$USER/.ssh
+
+sudo touch /home/$USER/.ssh/my-ssh-key
+sudo touch /home/$USER/.ssh/my-ssh-key.pub
+
+sudo tee -a /home/$USER/.ssh/my-ssh-key << EOF
+myprivkey
+EOF
+
+sudo tee -a /home/$USER/.ssh/my-ssh-key.pub << EOF
+ssh-rsa mypubkey
+EOF
+
+#sudo ssh-keygen -t rsa -f /home/$USER/.ssh/my-ssh-key -C $USER -b 2048 -q -N ""
+
+sudo chmod 600 /home/$USER/.ssh/my-ssh-key
+sudo chmod 644 /home/$USER/.ssh/my-ssh-key.pub
+
+sudo ssh-keygen -p -P pass -N '' -f /home/$USER/.ssh/my-ssh-key
+
 UUID=$(uuidgen)
 echo -e "[global]\nfsid = $UUID" | sudo tee /etc/ceph/ceph.conf
 
@@ -35,7 +57,9 @@ osd pool default pgp num = 333
 osd crush chooseleaf type = 1
 EOF
 
-
+sudo chmod 755 /var/lib/ceph
+sudo chmod 755 /var/lib/ceph/bootstrap-osd
+sudo chmod 755 /var/lib/ceph/bootstrap-osd/ceph.keyring
 
 sudo systemctl start ceph-mon@monitor-instance-1
 
