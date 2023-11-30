@@ -388,30 +388,6 @@ resource "google_compute_instance" "mgr_1" {
     }
 
     tags = [ "http-server", "https-server" ]
-
-    provisioner "file" {
-        source      = "./configs/mgr_config.sh"
-        destination = "./mgr_config.sh"
-        connection {
-            type        = "ssh"
-            user        = "debian"
-            private_key = tls_private_key.ssh_key.private_key_pem
-            host        = self.network_interface[0].access_config[0].nat_ip
-        }
-    }
-
-    provisioner "remote-exec" {
-        inline = [
-          "sudo chmod +x ./mgr_config.sh",
-          "sudo ./mgr_config.sh"
-        ]
-        connection {
-            type = "ssh"
-            user = "debian"
-            private_key = tls_private_key.ssh_key.private_key_pem
-            host        = self.network_interface[0].access_config[0].nat_ip
-        }
-    }
 }
 
 resource "google_compute_instance" "client_1" {
@@ -442,29 +418,5 @@ resource "google_compute_instance" "client_1" {
         ssh-keys = <<EOF
             root:ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIL3MUis6A3DvI+sCMAXewZ7hECAoameXjOWcVNUjMCW/ sofia
         EOF
-    }
-
-    provisioner "file" {
-        source      = "./configs/client_config.sh"
-        destination = "./client_config.sh"
-        connection {
-            type        = "ssh"
-            user        = "debian"
-            private_key = tls_private_key.ssh_key.private_key_pem
-            host        = self.network_interface[0].access_config[0].nat_ip
-        }
-    }
-
-    provisioner "remote-exec" {
-        inline = [
-          "sudo chmod +x ./client_config.sh",
-          "sudo ./client_config.sh"
-        ]
-        connection {
-            type = "ssh"
-            user = "debian"
-            private_key = tls_private_key.ssh_key.private_key_pem
-            host        = self.network_interface[0].access_config[0].nat_ip
-        }
     }
 }
