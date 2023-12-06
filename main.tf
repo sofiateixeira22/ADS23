@@ -5,17 +5,90 @@ terraform apply
 *enter a value:* yes
 */
 
-# TODO: fix external ip address
-# TODO: run commands to install ceph on each node
-
 variable "ssh_username" {
-    default = "cristinamcp21"
+    default = "user"
 }
 
-variable "metadata_keys" {
-    default = "cristinamcp21:ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCx/ypUE7Wtmpa9hwlWuZNwY5CgTT80K0rOykNZYlubgEfpSeKj+j0VPyccXvxxs3Kta6zliT7N4fiNUp4NxhH5MEzlV6DSUyuWCchv7y90dkyI/jqE5PmWtGQHAx7CPYe4I8o4HgQSswVLPblJV4y3rjqcfN7nmeXxL2Vherhr2TOO/fKyIYroYhkAXFJ0nlUjGs+tZM8OugAQDTUVb8BArPsCfgjLCM+Jz0bwADRZCQ6PxnZQS26vT6wZR+XLHAIYDNi+dX58vkywm4qgXw0YnarKS76eBo9PCrD0jqGSGB4gOkg5q+K4c2xrWLqfWPRFPQz3JZv11Zn/ZQQ+drvT cristinamcp21"
+resource "tls_private_key" "ssh_key" {
+  algorithm = "ED25519"
 }
 
+resource "google_compute_project_metadata" "ssh_keys" {
+  metadata = {
+    ssh-keys = "${var.ssh_username}:${tls_private_key.ssh_key.public_key_openssh}"
+  }
+}
+
+# copy private key to all instances
+resource "null_resource" "ssh_key_copy" {
+    depends_on = [google_compute_instance.mon_1, google_compute_instance.osd_node_1, google_compute_instance.osd_node_2, google_compute_instance.mgr_1, google_compute_instance.client_1]
+
+    provisioner "remote-exec" {
+        inline = [
+            "echo '${tls_private_key.ssh_key.private_key_openssh}' > ~/.ssh/id_ed25519",
+            "chmod 600 ~/.ssh/id_ed25519"
+        ]
+        connection {
+            type        = "ssh"
+            user        = var.ssh_username
+            private_key = tls_private_key.ssh_key.private_key_pem
+            host        = google_compute_instance.mon_1.network_interface[0].access_config[0].nat_ip
+        }   
+    }
+
+    provisioner "remote-exec" {
+        inline = [
+            "echo '${tls_private_key.ssh_key.private_key_openssh}' > ~/.ssh/id_ed25519",
+            "chmod 600 ~/.ssh/id_ed25519"
+        ]
+        connection {
+            type        = "ssh"
+            user        = var.ssh_username
+            private_key = tls_private_key.ssh_key.private_key_pem
+            host        = google_compute_instance.osd_node_1.network_interface[0].access_config[0].nat_ip
+        }   
+    }
+
+    provisioner "remote-exec" {
+        inline = [
+            "echo '${tls_private_key.ssh_key.private_key_openssh}' > ~/.ssh/id_ed25519",
+            "chmod 600 ~/.ssh/id_ed25519"
+        ]
+        connection {
+            type        = "ssh"
+            user        = var.ssh_username
+            private_key = tls_private_key.ssh_key.private_key_pem
+            host        = google_compute_instance.osd_node_2.network_interface[0].access_config[0].nat_ip
+        }   
+    }
+
+    provisioner "remote-exec" {
+        inline = [
+            "echo '${tls_private_key.ssh_key.private_key_openssh}' > ~/.ssh/id_ed25519",
+            "chmod 600 ~/.ssh/id_ed25519"
+        ]
+        connection {
+            type        = "ssh"
+            user        = var.ssh_username
+            private_key = tls_private_key.ssh_key.private_key_pem
+            host        = google_compute_instance.mgr_1.network_interface[0].access_config[0].nat_ip
+        }   
+    }
+
+    provisioner "remote-exec" {
+        inline = [
+            "echo '${tls_private_key.ssh_key.private_key_openssh}' > ~/.ssh/id_ed25519",
+            "chmod 600 ~/.ssh/id_ed25519"
+        ]
+        connection {
+            type        = "ssh"
+            user        = var.ssh_username
+            private_key = tls_private_key.ssh_key.private_key_pem
+            host        = google_compute_instance.client_1.network_interface[0].access_config[0].nat_ip
+        }   
+    }
+
+}
 
 # load network and subnetwork data and create addresses
 
@@ -91,17 +164,6 @@ resource "google_compute_address" "client_1_ip_external" {
     name = "client-1-ip-external"
     region = "europe-southwest1"
     address_type  = "EXTERNAL"
-}
-
-resource "tls_private_key" "ssh_key" {
-  algorithm = "RSA"
-  rsa_bits  = 2048
-}
-
-resource "google_compute_project_metadata" "ssh_keys" {
-  metadata = {
-    ssh-keys = "${var.ssh_username}:${tls_private_key.ssh_key.public_key_openssh}"
-  }
 }
 
 # create disks to attach to osd instances
@@ -185,8 +247,28 @@ resource "google_compute_instance" "mon_1" {
     }
 
     metadata = {
-        ssh-keys = var.metadata_keys
+        
     }
+
+    provisioner "remote-exec" {
+        inline = [
+            "sudo apt-get update -y",
+            "sudo apt-get install -y ceph ceph-mds"
+        ]
+        connection {
+            type = "ssh"
+            user = var.ssh_username
+            private_key = tls_private_key.ssh_key.private_key_pem
+            host        = self.network_interface[0].access_config[0].nat_ip
+        }
+    }
+
+    tags = [ "http-server", "https-server" ]
+}
+
+# Makes sure that mon config is only executed after mon vm is created
+resource "null_resource" "mon_vm_provisioner" {
+    depends_on = [google_compute_instance.mon_1]
 
     provisioner "file" {
         source      = "./configs/mon_config.sh"
@@ -195,24 +277,21 @@ resource "google_compute_instance" "mon_1" {
             type        = "ssh"
             user        = var.ssh_username
             private_key = tls_private_key.ssh_key.private_key_pem
-            host        = self.network_interface[0].access_config[0].nat_ip
+            host        = google_compute_instance.osd_node_1.network_interface[0].access_config[0].nat_ip
         }
     }
 
     provisioner "remote-exec" {
         inline = [
-          "sudo chmod +x ./mon_config.sh",
-          "sudo ./mon_config.sh"
+            "sudo bash mon_config.sh"
         ]
         connection {
             type = "ssh"
             user = var.ssh_username
             private_key = tls_private_key.ssh_key.private_key_pem
-            host        = self.network_interface[0].access_config[0].nat_ip
+            host        = google_compute_instance.osd_node_1.network_interface[0].access_config[0].nat_ip
         }
-    }  
-
-    tags = [ "http-server", "https-server" ]
+    }
 }
 
 resource "google_compute_instance" "osd_node_1" {
@@ -238,10 +317,6 @@ resource "google_compute_instance" "osd_node_1" {
         }
     }
 
-    metadata = {
-        ssh-keys = var.metadata_keys
-    }
-
     provisioner "remote-exec" {
         inline = [
             "sudo apt-get update -y",
@@ -261,7 +336,7 @@ resource "google_compute_instance" "osd_node_1" {
 
 # Makes sure that osd1 config is only executed after mon config is completed and disks are attached
 resource "null_resource" "osd_1_vm_provisioner" {
-    depends_on = [google_compute_attached_disk.osd_1_disk_ssd_attach, google_compute_attached_disk.osd_1_disk_standard_attach, google_compute_instance.mon_1, google_compute_instance.osd_node_1]
+    depends_on = [null_resource.mon_vm_provisioner, google_compute_attached_disk.osd_1_disk_ssd_attach, google_compute_attached_disk.osd_1_disk_standard_attach, google_compute_instance.mon_1, google_compute_instance.osd_node_1]
 
     provisioner "file" {
         source      = "./configs/osd_common_config.sh"
@@ -276,8 +351,7 @@ resource "null_resource" "osd_1_vm_provisioner" {
 
     provisioner "remote-exec" {
         inline = [
-            "sudo chmod +x ./osd_common_config.sh",
-            "sudo ./osd_common_config.sh"
+            "sudo bash osd_common_config.sh"
         ]
         connection {
             type = "ssh"
@@ -311,10 +385,6 @@ resource "google_compute_instance" "osd_node_2" {
         }
     }
 
-    metadata = {
-        ssh-keys = var.metadata_keys
-    }
-
     provisioner "remote-exec" {
         inline = [
             "sudo apt-get update -y",
@@ -334,7 +404,7 @@ resource "google_compute_instance" "osd_node_2" {
 
 # Makes sure that osd2 config is only executed after mon config is completed and disks are attached
 resource "null_resource" "osd_2_vm_provisioner" {
-    depends_on = [google_compute_attached_disk.osd_2_disk_1_attach, google_compute_attached_disk.osd_2_disk_2_attach, google_compute_instance.mon_1, google_compute_instance.osd_node_2]
+    depends_on = [null_resource.mon_vm_provisioner, google_compute_attached_disk.osd_2_disk_1_attach, google_compute_attached_disk.osd_2_disk_2_attach, google_compute_instance.mon_1, google_compute_instance.osd_node_2]
 
     provisioner "file" {
         source      = "./configs/osd_common_config.sh"
@@ -349,8 +419,7 @@ resource "null_resource" "osd_2_vm_provisioner" {
 
     provisioner "remote-exec" {
         inline = [
-            "sudo chmod +x ./osd_common_config.sh",
-            "sudo ./osd_common_config.sh"
+            "sudo bash osd_common_config.sh"
         ]
         connection {
             type = "ssh"
@@ -360,6 +429,22 @@ resource "null_resource" "osd_2_vm_provisioner" {
         }
     }
 }
+
+# resource "null_resource" "cheking_ceph_cluster" {
+#   depends_on = [ null_resource.osd_1_vm_provisioner, null_resource.osd_2_vm_provisioner ]
+
+#     provisioner "remote-exec" {
+#         inline = [
+#             "sudo ceph -s"
+#         ]
+#         connection {
+#         type        = "ssh"
+#         user        = var.ssh_username
+#         private_key = tls_private_key.ssh_key.private_key_pem
+#         host        = google_compute_instance.mon_1.network_interface[0].access_config[0].nat_ip
+#         }
+#     }
+# }
 
 resource "google_compute_instance" "mgr_1" {
     name         = "manager-instance-1"
@@ -381,10 +466,6 @@ resource "google_compute_instance" "mgr_1" {
         access_config {
             nat_ip = google_compute_address.mgr_1_ip_external.address
         }
-    }
-
-    metadata = {
-        ssh-keys = var.metadata_keys
     }
 
     tags = [ "http-server", "https-server" ]
@@ -413,10 +494,4 @@ resource "google_compute_instance" "client_1" {
     }
 
     tags = [ "http-server", "https-server" ]
-
-    metadata = {
-        ssh-keys = <<EOF
-            root:ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIL3MUis6A3DvI+sCMAXewZ7hECAoameXjOWcVNUjMCW/ sofia
-        EOF
-    }
 }

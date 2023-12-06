@@ -1,28 +1,6 @@
 #!/bin/bash
-#sudo apt-get update -y
-#sudo apt-get install -y ceph ceph-mds 
 
 USER=$(logname)
-
-sudo chmod +x /home/$USER/.ssh
-
-sudo touch /home/$USER/.ssh/my-ssh-key
-sudo touch /home/$USER/.ssh/my-ssh-key.pub
-
-sudo tee -a /home/$USER/.ssh/my-ssh-key << EOF
-myprivkey
-EOF
-
-sudo tee -a /home/$USER/.ssh/my-ssh-key.pub << EOF
-ssh-rsa mypubkey
-EOF
-
-# sudo ssh-keygen -t rsa -f /home/$USER/.ssh/my-ssh-key -C $USER -b 2048 -q -N ""
-
-sudo chmod 600 /home/$USER/.ssh/my-ssh-key
-sudo chmod 644 /home/$USER/.ssh/my-ssh-key.pub
-
-sudo ssh-keygen -p -P pass -N '' -f /home/$USER/.ssh/my-ssh-key
 
 sudo chmod 755 /var/lib/ceph
 sudo chmod 755 /var/lib/ceph/bootstrap-osd
