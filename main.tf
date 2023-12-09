@@ -87,7 +87,6 @@ resource "null_resource" "ssh_key_copy" {
             host        = google_compute_instance.client_1.network_interface[0].access_config[0].nat_ip
         }   
     }
-
 }
 
 # load network and subnetwork data and create addresses
@@ -227,7 +226,6 @@ resource "google_compute_instance" "mon_1" {
     name         = "monitor-instance-1"
     machine_type = "e2-micro"
     zone         = "europe-southwest1-c"
-    can_ip_forward = true
 
     boot_disk {
         initialize_params {
@@ -246,14 +244,11 @@ resource "google_compute_instance" "mon_1" {
         }
     }
 
-    metadata = {
-        
-    }
 
     provisioner "remote-exec" {
         inline = [
-            "sudo apt-get update -y",
-            "sudo apt-get install -y ceph ceph-mds"
+            "sudo apt-get update -y --no-install-recommends",
+            "sudo apt-get install -y ceph ceph-mds --no-install-recommends"
         ]
         connection {
             type = "ssh"
@@ -268,7 +263,7 @@ resource "google_compute_instance" "mon_1" {
 
 # Makes sure that mon config is only executed after mon vm is created
 resource "null_resource" "mon_vm_provisioner" {
-    depends_on = [google_compute_instance.mon_1]
+    depends_on = [google_compute_instance.mon_1, null_resource.ssh_key_copy]
 
     provisioner "file" {
         source      = "./configs/mon_config.sh"
@@ -277,7 +272,7 @@ resource "null_resource" "mon_vm_provisioner" {
             type        = "ssh"
             user        = var.ssh_username
             private_key = tls_private_key.ssh_key.private_key_pem
-            host        = google_compute_instance.osd_node_1.network_interface[0].access_config[0].nat_ip
+            host        = google_compute_instance.mon_1.network_interface[0].access_config[0].nat_ip
         }
     }
 
@@ -289,7 +284,7 @@ resource "null_resource" "mon_vm_provisioner" {
             type = "ssh"
             user = var.ssh_username
             private_key = tls_private_key.ssh_key.private_key_pem
-            host        = google_compute_instance.osd_node_1.network_interface[0].access_config[0].nat_ip
+            host        = google_compute_instance.mon_1.network_interface[0].access_config[0].nat_ip
         }
     }
 }
@@ -319,8 +314,8 @@ resource "google_compute_instance" "osd_node_1" {
 
     provisioner "remote-exec" {
         inline = [
-            "sudo apt-get update -y",
-            "sudo apt-get install -y ceph ceph-mds"
+            "sudo apt-get update -y --no-install-recommends",
+            "sudo apt-get install -y ceph ceph-mds --no-install-recommends"
         ]
         connection {
             type = "ssh"
@@ -336,7 +331,7 @@ resource "google_compute_instance" "osd_node_1" {
 
 # Makes sure that osd1 config is only executed after mon config is completed and disks are attached
 resource "null_resource" "osd_1_vm_provisioner" {
-    depends_on = [null_resource.mon_vm_provisioner, google_compute_attached_disk.osd_1_disk_ssd_attach, google_compute_attached_disk.osd_1_disk_standard_attach, google_compute_instance.mon_1, google_compute_instance.osd_node_1]
+    depends_on = [null_resource.mon_vm_provisioner, google_compute_attached_disk.osd_1_disk_ssd_attach, google_compute_attached_disk.osd_1_disk_standard_attach, google_compute_instance.osd_node_1, null_resource.ssh_key_copy]
 
     provisioner "file" {
         source      = "./configs/osd_common_config.sh"
@@ -387,8 +382,8 @@ resource "google_compute_instance" "osd_node_2" {
 
     provisioner "remote-exec" {
         inline = [
-            "sudo apt-get update -y",
-            "sudo apt-get install -y ceph ceph-mds"
+            "sudo apt-get update -y --no-install-recommends",
+            "sudo apt-get install -y ceph ceph-mds --no-install-recommends"
         ]
         connection {
             type = "ssh"
@@ -404,7 +399,7 @@ resource "google_compute_instance" "osd_node_2" {
 
 # Makes sure that osd2 config is only executed after mon config is completed and disks are attached
 resource "null_resource" "osd_2_vm_provisioner" {
-    depends_on = [null_resource.mon_vm_provisioner, google_compute_attached_disk.osd_2_disk_1_attach, google_compute_attached_disk.osd_2_disk_2_attach, google_compute_instance.mon_1, google_compute_instance.osd_node_2]
+    depends_on = [null_resource.mon_vm_provisioner, google_compute_attached_disk.osd_2_disk_1_attach, google_compute_attached_disk.osd_2_disk_2_attach, google_compute_instance.osd_node_2, null_resource.ssh_key_copy]
 
     provisioner "file" {
         source      = "./configs/osd_common_config.sh"
@@ -430,21 +425,21 @@ resource "null_resource" "osd_2_vm_provisioner" {
     }
 }
 
-# resource "null_resource" "cheking_ceph_cluster" {
-#   depends_on = [ null_resource.osd_1_vm_provisioner, null_resource.osd_2_vm_provisioner ]
+resource "null_resource" "cheking_ceph_cluster" {
+    depends_on = [null_resource.mgr_vm_provisioner]
 
-#     provisioner "remote-exec" {
-#         inline = [
-#             "sudo ceph -s"
-#         ]
-#         connection {
-#         type        = "ssh"
-#         user        = var.ssh_username
-#         private_key = tls_private_key.ssh_key.private_key_pem
-#         host        = google_compute_instance.mon_1.network_interface[0].access_config[0].nat_ip
-#         }
-#     }
-# }
+    provisioner "remote-exec" {
+        inline = [
+            "sudo ceph -s"
+        ]
+        connection {
+            type        = "ssh"
+            user        = var.ssh_username
+            private_key = tls_private_key.ssh_key.private_key_pem
+            host        = google_compute_instance.mon_1.network_interface[0].access_config[0].nat_ip
+        }
+    }
+}
 
 resource "google_compute_instance" "mgr_1" {
     name         = "manager-instance-1"
@@ -468,7 +463,48 @@ resource "google_compute_instance" "mgr_1" {
         }
     }
 
+    provisioner "remote-exec" {
+        inline = [
+            "sudo apt-get update -y --no-install-recommends",
+            "sudo apt-get install -y ceph ceph-mds --no-install-recommends"
+        ]
+        connection {
+            type = "ssh"
+            user = var.ssh_username
+            private_key = tls_private_key.ssh_key.private_key_pem
+            host        = self.network_interface[0].access_config[0].nat_ip
+        }
+    }
+
     tags = [ "http-server", "https-server" ]
+}
+
+
+resource "null_resource" "mgr_vm_provisioner" {
+    depends_on = [null_resource.mon_vm_provisioner, null_resource.ssh_key_copy, google_compute_instance.mgr_1]
+
+    provisioner "file" {
+        source      = "./configs/mgr_config.sh"
+        destination = "./mgr_config.sh"
+        connection {
+            type        = "ssh"
+            user        = var.ssh_username
+            private_key = tls_private_key.ssh_key.private_key_pem
+            host        = google_compute_instance.mgr_1.network_interface[0].access_config[0].nat_ip
+        }
+    }
+
+    provisioner "remote-exec" {
+        inline = [
+            "sudo bash mgr_config.sh"
+        ]
+        connection {
+            type = "ssh"
+            user = var.ssh_username
+            private_key = tls_private_key.ssh_key.private_key_pem
+            host        = google_compute_instance.mgr_1.network_interface[0].access_config[0].nat_ip
+        }
+    }
 }
 
 resource "google_compute_instance" "client_1" {
@@ -493,5 +529,46 @@ resource "google_compute_instance" "client_1" {
         }
     }
 
+    provisioner "remote-exec" {
+        inline = [
+            "sudo apt-get update -y --no-install-recommends",
+            "sudo apt-get install -y ceph ceph-mds --no-install-recommends"
+        ]
+        connection {
+            type = "ssh"
+            user = var.ssh_username
+            private_key = tls_private_key.ssh_key.private_key_pem
+            host        = self.network_interface[0].access_config[0].nat_ip
+        }
+    }
+
     tags = [ "http-server", "https-server" ]
+}
+
+
+resource "null_resource" "client_vm_provisioner" {
+    depends_on = [null_resource.mgr_vm_provisioner, null_resource.ssh_key_copy, google_compute_instance.client_1]
+
+    provisioner "file" {
+        source      = "./configs/client_config.sh"
+        destination = "./client_config.sh"
+        connection {
+            type        = "ssh"
+            user        = var.ssh_username
+            private_key = tls_private_key.ssh_key.private_key_pem
+            host        = google_compute_instance.client_1.network_interface[0].access_config[0].nat_ip
+        }
+    }
+
+    provisioner "remote-exec" {
+        inline = [
+            "sudo bash client_config.sh"
+        ]
+        connection {
+            type = "ssh"
+            user = var.ssh_username
+            private_key = tls_private_key.ssh_key.private_key_pem
+            host        = google_compute_instance.client_1.network_interface[0].access_config[0].nat_ip
+        }
+    }
 }
