@@ -1,0 +1,17 @@
+Host *
+    StrictHostKeyChecking no
+Host monitor-instance-1
+    HostName 10.204.15.225
+    User root
+Host manager-instance-1
+    HostName 10.204.15.224
+    User root
+Host osd-instance-1
+    HostName 10.204.15.223
+    User root
+Host osd-instance-2
+    HostName 10.204.15.227
+    User root
+Host client-instance-1
+    HostName 10.204.15.226
+    User root
