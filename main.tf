@@ -178,7 +178,6 @@ resource "null_resource" "ssh_key_copy" {
             host        = google_compute_instance.client_1.network_interface[0].access_config[0].nat_ip
         }   
     }
-
 }
 
 # load network and subnetwork data and create addresses
@@ -318,7 +317,6 @@ resource "google_compute_instance" "mon_1" {
     name         = "monitor-instance-1"
     machine_type = "e2-medium"
     zone         = "europe-southwest1-c"
-    can_ip_forward = true
 
     boot_disk {
         initialize_params {
@@ -478,6 +476,22 @@ resource "google_compute_instance" "osd_node_2" {
 #     # }
 # }
 
+resource "null_resource" "cheking_ceph_cluster" {
+    depends_on = [null_resource.mgr_vm_provisioner]
+
+    provisioner "remote-exec" {
+        inline = [
+            "sudo ceph -s"
+        ]
+        connection {
+            type        = "ssh"
+            user        = var.ssh_username
+            private_key = tls_private_key.ssh_key.private_key_pem
+            host        = google_compute_instance.osd_node_2.network_interface[0].access_config[0].nat_ip
+        }
+    }
+}
+
 # resource "null_resource" "cheking_ceph_cluster" {
 #   depends_on = [ null_resource.osd_1_vm_provisioner, null_resource.osd_2_vm_provisioner ]
 
@@ -516,7 +530,48 @@ resource "google_compute_instance" "mgr_1" {
         }
     }
 
+    provisioner "remote-exec" {
+        inline = [
+            "sudo apt-get update -y --no-install-recommends",
+            "sudo apt-get install -y ceph ceph-mds --no-install-recommends"
+        ]
+        connection {
+            type = "ssh"
+            user = var.ssh_username
+            private_key = tls_private_key.ssh_key.private_key_pem
+            host        = self.network_interface[0].access_config[0].nat_ip
+        }
+    }
+
     tags = [ "http-server", "https-server" ]
+}
+
+
+resource "null_resource" "mgr_vm_provisioner" {
+    depends_on = [null_resource.mon_vm_provisioner, null_resource.ssh_key_copy, google_compute_instance.mgr_1]
+
+    provisioner "file" {
+        source      = "./configs/mgr_config.sh"
+        destination = "./mgr_config.sh"
+        connection {
+            type        = "ssh"
+            user        = var.ssh_username
+            private_key = tls_private_key.ssh_key.private_key_pem
+            host        = google_compute_instance.mgr_1.network_interface[0].access_config[0].nat_ip
+        }
+    }
+
+    provisioner "remote-exec" {
+        inline = [
+            "sudo bash mgr_config.sh"
+        ]
+        connection {
+            type = "ssh"
+            user = var.ssh_username
+            private_key = tls_private_key.ssh_key.private_key_pem
+            host        = google_compute_instance.mgr_1.network_interface[0].access_config[0].nat_ip
+        }
+    }
 }
 
 resource "google_compute_instance" "client_1" {
@@ -541,5 +596,46 @@ resource "google_compute_instance" "client_1" {
         }
     }
 
+    provisioner "remote-exec" {
+        inline = [
+            "sudo apt-get update -y --no-install-recommends",
+            "sudo apt-get install -y ceph ceph-mds --no-install-recommends"
+        ]
+        connection {
+            type = "ssh"
+            user = var.ssh_username
+            private_key = tls_private_key.ssh_key.private_key_pem
+            host        = self.network_interface[0].access_config[0].nat_ip
+        }
+    }
+
     tags = [ "http-server", "https-server" ]
+}
+
+
+resource "null_resource" "client_vm_provisioner" {
+    depends_on = [null_resource.mgr_vm_provisioner, null_resource.ssh_key_copy, google_compute_instance.client_1]
+
+    provisioner "file" {
+        source      = "./configs/client_config.sh"
+        destination = "./client_config.sh"
+        connection {
+            type        = "ssh"
+            user        = var.ssh_username
+            private_key = tls_private_key.ssh_key.private_key_pem
+            host        = google_compute_instance.client_1.network_interface[0].access_config[0].nat_ip
+        }
+    }
+
+    provisioner "remote-exec" {
+        inline = [
+            "sudo bash client_config.sh"
+        ]
+        connection {
+            type = "ssh"
+            user = var.ssh_username
+            private_key = tls_private_key.ssh_key.private_key_pem
+            host        = google_compute_instance.client_1.network_interface[0].access_config[0].nat_ip
+        }
+    }
 }
