@@ -22,7 +22,7 @@ ceph osd pool set rbd pg_autoscale_mode on
 rbd pool init rbd
 
 # create a block device with 10GB
-rbd create --size 20G --pool rbd rbd01
+rbd create --size 10G --pool rbd rbd01
 
 # map block device
 rbd map rbd01
