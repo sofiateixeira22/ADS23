@@ -596,11 +596,3 @@ resource "null_resource" "provision_client" {
         }
     }
 }
-
-# create tun shell script
-resource "null_resource" "create_tun_script" {
-    depends_on = [null_resource.provision_client]
-    provisioner "local-exec" {
-        command = "echo ssh -i configs/.tmp/id_ed25519 -o StrictHostKeyChecking=no -R 8080:localhost:80 root@${google_compute_instance.client_1.network_interface[0].access_config[0].nat_ip} > ./ssh-tun.sh"
-    }
-}
