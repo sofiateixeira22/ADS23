@@ -1,12 +1,5 @@
 #!/bin/bash
 
-# mount local disk for backups
-# parted --script /dev/sdb 'mklabel gpt'
-# parted --script /dev/sdb "mkpart primary 0% 100%"
-# mkfs.xfs /dev/sdb1
-# mkdir /mnt/ceph-backup
-# mount /dev/sdb1 /mnt/ceph-backup
-
 # copy config and keyring from monitor node
 scp monitor-instance-1:/etc/ceph/ceph.conf /etc/ceph/
 scp monitor-instance-1:/etc/ceph/ceph.client.admin.keyring /etc/ceph/
@@ -36,6 +29,16 @@ mkfs.xfs /dev/rbd0
 # mount block device
 mkdir /mnt/rbd
 mount /dev/rbd0 /mnt/rbd
+
+# mount local disk for backups
+parted --script /dev/sdb 'mklabel gpt'
+parted --script /dev/sdb "mkpart primary 0% 100%"
+mkfs.xfs /dev/sdb1
+mkdir /mnt/ceph-backup-disk
+mount /dev/sdb1 /mnt/ceph-backup-disk
+
+# create cron job to backup /mnt/rbd to /mnt/ceph-backup-disk every 5 minutes
+echo "*/5 * * * * rsync -a /mnt/rbd/ /mnt/ceph-backup-disk/" | crontab -
 
 echo "Done provisioning $(hostname)"
 
