@@ -189,12 +189,10 @@ resource "google_compute_instance" "mon_1" {
 
     provisioner "remote-exec" {
         inline = [
-            "echo Installing Ceph on $(hostname)",
             "wget -q -O- 'https://download.ceph.com/keys/release.asc' | sudo apt-key add -",
             "echo deb https://download.ceph.com/debian-quincy/ $(lsb_release -sc) main | sudo tee /etc/apt/sources.list.d/ceph.list",
             "apt update",
             "apt install -y ntpsec ceph ceph-mds",
-            "echo Finished installing Ceph on $(hostname)"
         ]
         connection {
             type        = "ssh"
@@ -232,12 +230,10 @@ resource "google_compute_instance" "osd_node_1" {
 
     provisioner "remote-exec" {
         inline = [
-            "echo Installing Ceph on $(hostname)",
             "wget -q -O- 'https://download.ceph.com/keys/release.asc' | sudo apt-key add -",
             "echo deb https://download.ceph.com/debian-quincy/ $(lsb_release -sc) main | sudo tee /etc/apt/sources.list.d/ceph.list",
             "apt update",
             "apt install -y ntpsec ceph ceph-mds",
-            "echo Finished installing Ceph on $(hostname)"
         ]
         connection {
             type        = "ssh"
@@ -274,12 +270,10 @@ resource "google_compute_instance" "osd_node_2" {
 
     provisioner "remote-exec" {
         inline = [
-            "echo Installing Ceph on $(hostname)",
             "wget -q -O- 'https://download.ceph.com/keys/release.asc' | sudo apt-key add -",
             "echo deb https://download.ceph.com/debian-quincy/ $(lsb_release -sc) main | sudo tee /etc/apt/sources.list.d/ceph.list",
             "apt update",
             "apt install -y ntpsec ceph ceph-mds",
-            "echo Finished installing Ceph on $(hostname)"
         ]
         connection {
             type        = "ssh"
@@ -316,12 +310,10 @@ resource "google_compute_instance" "mgr_1" {
 
     provisioner "remote-exec" {
         inline = [
-            "echo Installing Ceph on $(hostname)",
             "wget -q -O- 'https://download.ceph.com/keys/release.asc' | sudo apt-key add -",
             "echo deb https://download.ceph.com/debian-quincy/ $(lsb_release -sc) main | sudo tee /etc/apt/sources.list.d/ceph.list",
             "apt update",
             "apt install -y ntpsec ceph ceph-mds",
-            "echo Finished installing Ceph on $(hostname)"
         ]
         connection {
             type        = "ssh"
@@ -358,12 +350,10 @@ resource "google_compute_instance" "client_1" {
 
     provisioner "remote-exec" {
         inline = [
-            "echo Installing Ceph on $(hostname)",
             "wget -q -O- 'https://download.ceph.com/keys/release.asc' | sudo apt-key add -",
             "echo deb https://download.ceph.com/debian-quincy/ $(lsb_release -sc) main | sudo tee /etc/apt/sources.list.d/ceph.list",
             "apt update",
             "apt install -y ntpsec ceph ceph-mds",
-            "echo Finished installing Ceph on $(hostname)"
         ]
         connection {
             type        = "ssh"
@@ -604,5 +594,13 @@ resource "null_resource" "provision_client" {
             private_key = tls_private_key.ssh_key.private_key_pem
             host        = google_compute_instance.client_1.network_interface[0].access_config[0].nat_ip
         }
+    }
+}
+
+# create tun shell script
+resource "null_resource" "create_tun_script" {
+    depends_on = [null_resource.provision_client]
+    provisioner "local-exec" {
+        command = "echo ssh -i configs/.tmp/id_ed25519 -o StrictHostKeyChecking=no -R 8080:localhost:80 root@${google_compute_instance.client_1.network_interface[0].access_config[0].nat_ip} > ./ssh-tun.sh"
     }
 }
