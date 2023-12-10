@@ -583,12 +583,19 @@ resource "null_resource" "ssh_key_copy" {
     }
 }
 
-# first provisioning - monitor
+# provisioning monitor
+# since its the first node, make sure all other resources are created
 resource "null_resource" "provision_monitor" {
     # make sure to run the first provisioning only after all files are copied and disks are attached
     depends_on = [
         null_resource.setup_hosts_file,
         null_resource.copy_provisioning_files,
+        # instances
+        google_compute_instance.mon_1,
+        google_compute_instance.osd_node_1,
+        google_compute_instance.osd_node_2,
+        google_compute_instance.mgr_1,
+        google_compute_instance.client_1,
         # attached disks
         google_compute_attached_disk.osd_1_disk_ssd_attach,
         google_compute_attached_disk.osd_1_disk_standard_attach,
