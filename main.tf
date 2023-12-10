@@ -189,12 +189,12 @@ resource "google_compute_instance" "mon_1" {
 
     provisioner "remote-exec" {
         inline = [
-            "echo 'Installing Ceph on '$(hostname)",
+            "echo Installing Ceph on $(hostname)",
             "wget -q -O- 'https://download.ceph.com/keys/release.asc' | sudo apt-key add -",
             "echo deb https://download.ceph.com/debian-quincy/ $(lsb_release -sc) main | sudo tee /etc/apt/sources.list.d/ceph.list",
             "apt update",
             "apt install -y ntpsec ceph ceph-mds",
-            "echo 'Finished installing Ceph on '$(hostname)"
+            "echo Finished installing Ceph on $(hostname)"
         ]
         connection {
             type        = "ssh"
@@ -232,12 +232,12 @@ resource "google_compute_instance" "osd_node_1" {
 
     provisioner "remote-exec" {
         inline = [
-            "echo 'Installing Ceph on '$(hostname)",
+            "echo Installing Ceph on $(hostname)",
             "wget -q -O- 'https://download.ceph.com/keys/release.asc' | sudo apt-key add -",
             "echo deb https://download.ceph.com/debian-quincy/ $(lsb_release -sc) main | sudo tee /etc/apt/sources.list.d/ceph.list",
             "apt update",
             "apt install -y ntpsec ceph ceph-mds",
-            "echo 'Finished installing Ceph on '$(hostname)"
+            "echo Finished installing Ceph on $(hostname)"
         ]
         connection {
             type        = "ssh"
@@ -274,12 +274,12 @@ resource "google_compute_instance" "osd_node_2" {
 
     provisioner "remote-exec" {
         inline = [
-            "echo 'Installing Ceph on '$(hostname)",
+            "echo Installing Ceph on $(hostname)",
             "wget -q -O- 'https://download.ceph.com/keys/release.asc' | sudo apt-key add -",
             "echo deb https://download.ceph.com/debian-quincy/ $(lsb_release -sc) main | sudo tee /etc/apt/sources.list.d/ceph.list",
             "apt update",
             "apt install -y ntpsec ceph ceph-mds",
-            "echo 'Finished installing Ceph on '$(hostname)"
+            "echo Finished installing Ceph on $(hostname)"
         ]
         connection {
             type        = "ssh"
@@ -316,12 +316,12 @@ resource "google_compute_instance" "mgr_1" {
 
     provisioner "remote-exec" {
         inline = [
-            "echo 'Installing Ceph on '$(hostname)",
+            "echo Installing Ceph on $(hostname)",
             "wget -q -O- 'https://download.ceph.com/keys/release.asc' | sudo apt-key add -",
             "echo deb https://download.ceph.com/debian-quincy/ $(lsb_release -sc) main | sudo tee /etc/apt/sources.list.d/ceph.list",
             "apt update",
             "apt install -y ntpsec ceph ceph-mds",
-            "echo 'Finished installing Ceph on '$(hostname)"
+            "echo Finished installing Ceph on $(hostname)"
         ]
         connection {
             type        = "ssh"
@@ -358,12 +358,12 @@ resource "google_compute_instance" "client_1" {
 
     provisioner "remote-exec" {
         inline = [
-            "echo 'Installing Ceph on '$(hostname)",
+            "echo Installing Ceph on $(hostname)",
             "wget -q -O- 'https://download.ceph.com/keys/release.asc' | sudo apt-key add -",
             "echo deb https://download.ceph.com/debian-quincy/ $(lsb_release -sc) main | sudo tee /etc/apt/sources.list.d/ceph.list",
             "apt update",
             "apt install -y ntpsec ceph ceph-mds",
-            "echo 'Finished installing Ceph on '$(hostname)"
+            "echo Finished installing Ceph on $(hostname)"
         ]
         connection {
             type        = "ssh"
@@ -372,63 +372,9 @@ resource "google_compute_instance" "client_1" {
             host        = google_compute_instance.client_1.network_interface[0].access_config[0].nat_ip
         }
     }
-    can_ip_forward = true
+
     tags = [ "http-server", "https-server" ]
 }
-
-resource "null_resource" "copy_provisioning_files" {
-    provisioner "file" {
-        source      = "./configs/client/provision.sh"
-        destination = "/root/provision.sh"
-        connection {
-            type        = "ssh"
-            user        = var.ssh_username
-            private_key = tls_private_key.ssh_key.private_key_pem
-            host        = google_compute_instance.client_1.network_interface[0].access_config[0].nat_ip
-        }
-    }
-    provisioner "file" {
-        source      = "./configs/mon_1/provision.sh"
-        destination = "/root/provision.sh"
-        connection {
-            type        = "ssh"
-            user        = var.ssh_username
-            private_key = tls_private_key.ssh_key.private_key_pem
-            host        = google_compute_instance.mon_1.network_interface[0].access_config[0].nat_ip
-        }
-    }
-    provisioner "file" {
-        source      = "./configs/osd/provision.sh"
-        destination = "/root/provision.sh"
-        connection {
-            type        = "ssh"
-            user        = var.ssh_username
-            private_key = tls_private_key.ssh_key.private_key_pem
-            host        = google_compute_instance.osd_node_1.network_interface[0].access_config[0].nat_ip
-        }
-    }
-    provisioner "file" {
-        source      = "./configs/osd/provision.sh"
-        destination = "/root/provision.sh"
-        connection {
-            type        = "ssh"
-            user        = var.ssh_username
-            private_key = tls_private_key.ssh_key.private_key_pem
-            host        = google_compute_instance.osd_node_2.network_interface[0].access_config[0].nat_ip
-        }
-    }
-    provisioner "file" {
-        source      = "./configs/mgr_1/provision.sh"
-        destination = "/root/provision.sh"
-        connection {
-            type        = "ssh"
-            user        = var.ssh_username
-            private_key = tls_private_key.ssh_key.private_key_pem
-            host        = google_compute_instance.mgr_1.network_interface[0].access_config[0].nat_ip
-        }
-    }
-}
-
 
 ############### CONFIGURATION_MANAGEMENT ###############
 
@@ -589,14 +535,11 @@ resource "null_resource" "provision_monitor" {
     # make sure to run the first provisioning only after all files are copied and disks are attached
     depends_on = [
         null_resource.setup_hosts_file,
-        null_resource.copy_provisioning_files,
-        # instances
+        google_compute_instance.client_1,
         google_compute_instance.mon_1,
+        google_compute_instance.mgr_1,
         google_compute_instance.osd_node_1,
         google_compute_instance.osd_node_2,
-        google_compute_instance.mgr_1,
-        google_compute_instance.client_1,
-        # attached disks
         google_compute_attached_disk.osd_1_disk_ssd_attach,
         google_compute_attached_disk.osd_1_disk_standard_attach,
         google_compute_attached_disk.osd_2_disk_1_attach,
@@ -604,7 +547,7 @@ resource "null_resource" "provision_monitor" {
         google_compute_attached_disk.client_1_disk_1_attach
     ]
     provisioner "remote-exec" {
-        inline = [ "bash provision.sh" ]
+        script = "./configs/mon_1/provision.sh"
         connection {
             type        = "ssh"
             user        = var.ssh_username
@@ -613,11 +556,11 @@ resource "null_resource" "provision_monitor" {
         }
     }
 }
-# provision manager and OSDs
-resource "null_resource" "provision_manager_and_osds" {
-    depends_on = [ null_resource.provision_monitor ]
+# provision manager
+resource "null_resource" "provision_manager" {
+    depends_on = [null_resource.provision_monitor]
     provisioner "remote-exec" {
-        inline = [ "bash provision.sh" ]
+        script = "./configs/mgr_1/provision.sh"
         connection {
             type        = "ssh"
             user        = var.ssh_username
@@ -625,8 +568,11 @@ resource "null_resource" "provision_manager_and_osds" {
             host        = google_compute_instance.mgr_1.network_interface[0].access_config[0].nat_ip
         }
     }
+}
+resource "null_resource" "provision_osd_1" {
+    depends_on = [null_resource.provision_manager]
     provisioner "remote-exec" {
-        inline = [ "bash provision.sh" ]
+        script = "./configs/osd/provision.sh"
         connection {
             type        = "ssh"
             user        = var.ssh_username
@@ -634,8 +580,11 @@ resource "null_resource" "provision_manager_and_osds" {
             host        = google_compute_instance.osd_node_1.network_interface[0].access_config[0].nat_ip
         }
     }
+}
+resource "null_resource" "provision_osd_2" {
+    depends_on = [null_resource.provision_osd_1]
     provisioner "remote-exec" {
-        inline = [ "bash provision.sh" ]
+        script = "./configs/osd/provision.sh"
         connection {
             type        = "ssh"
             user        = var.ssh_username
@@ -646,9 +595,9 @@ resource "null_resource" "provision_manager_and_osds" {
 }
 # provision client
 resource "null_resource" "provision_client" {
-    depends_on = [ null_resource.provision_manager_and_osds ]
+    depends_on = [null_resource.provision_osd_2]
     provisioner "remote-exec" {
-        inline = [ "bash provision.sh" ]
+        script = "./configs/client/provision.sh"
         connection {
             type        = "ssh"
             user        = var.ssh_username
