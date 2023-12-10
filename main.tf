@@ -204,7 +204,7 @@ resource "google_compute_instance" "mon_1" {
         }
     }
 
-    tags = [ "http-server", "https-server" ]
+    tags = []
 }
 
 resource "google_compute_instance" "osd_node_1" {
@@ -247,7 +247,7 @@ resource "google_compute_instance" "osd_node_1" {
         }
     }
 
-    tags = [ "http-server", "https-server" ]
+    tags = []
 }
 
 resource "google_compute_instance" "osd_node_2" {
@@ -289,7 +289,7 @@ resource "google_compute_instance" "osd_node_2" {
         }
     }
 
-    tags = [ "http-server", "https-server" ]
+    tags = []
 }
 
 resource "google_compute_instance" "mgr_1" {
@@ -331,7 +331,7 @@ resource "google_compute_instance" "mgr_1" {
         }
     }
 
-    tags = [ "http-server", "https-server" ]
+    tags = []
 }
 
 resource "google_compute_instance" "client_1" {
@@ -372,7 +372,7 @@ resource "google_compute_instance" "client_1" {
             host        = google_compute_instance.client_1.network_interface[0].access_config[0].nat_ip
         }
     }
-
+    can_ip_forward = true
     tags = [ "http-server", "https-server" ]
 }
 
@@ -430,7 +430,7 @@ resource "null_resource" "copy_provisioning_files" {
 }
 
 
-############### CONFIGURE_MANAGEMENT ###############
+############### CONFIGURATION_MANAGEMENT ###############
 
 # generate ssh config file
 resource "null_resource" "setup_hosts_file" {
@@ -517,13 +517,6 @@ resource "null_resource" "ssh_key_copy" {
         google_compute_instance.mgr_1,
         google_compute_instance.client_1
      ]
-
-    provisioner "local-exec" {
-        command = <<EOF
-            echo '${tls_private_key.ssh_key.private_key_openssh}' > ./configs/.tmp/id_ed25519
-        EOF
-    }
-
     provisioner "remote-exec" {
         inline = [
             "echo '${tls_private_key.ssh_key.private_key_openssh}' > /root/.ssh/id_ed25519",
@@ -657,4 +650,3 @@ resource "null_resource" "provision_client" {
         }
     }
 }
-
