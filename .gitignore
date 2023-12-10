@@ -1,6 +1,7 @@
 .terraform/
 keys*
 .terraform*
+configs/.tmp/
 .tmp/
 configs/keypair_generator.sh
 configs/tmp.txt

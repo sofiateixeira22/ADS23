@@ -1,5 +1,12 @@
 #!/bin/bash
 
+# mount local disk for backups
+# parted --script /dev/sdb 'mklabel gpt'
+# parted --script /dev/sdb "mkpart primary 0% 100%"
+# mkfs.xfs /dev/sdb1
+# mkdir /mnt/ceph-backup
+# mount /dev/sdb1 /mnt/ceph-backup
+
 # copy config and keyring from monitor node
 scp monitor-instance-1:/etc/ceph/ceph.conf /etc/ceph/
 scp monitor-instance-1:/etc/ceph/ceph.client.admin.keyring /etc/ceph/
@@ -32,7 +39,7 @@ mount /dev/rbd0 /mnt/rbd
 
 echo "Done provisioning $(hostname)"
 
-## delete instructions
+## delete block device instructions
 ## unmap
 # rbd unmap /dev/rbd/rbd/rbd01
 ## delete a block device
